@@ -20,7 +20,7 @@ VALUES
 	(1, 4, 'Project 4', 'Karen White', 120, '2023-04-01'), 
 	(1, 5, 'Project 5', 'Michael Black', 150, '2023-04-05');
 
-INSERT INTO payment (project_id, amount_due, paid_for, data) 
+INSERT INTO payment (project_id, amount_due, paid_for, date) 
 VALUES 
 	(1, 10000, 0, '2023-04-18'), 
 	(1, 5000, 0, '2023-03-18'), 

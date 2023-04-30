@@ -27,7 +27,7 @@ CREATE TABLE payment (
 	FOREIGN KEY (project_id) REFERENCES project (id),
 	amount_due INT NOT NULL CHECK (amount_due >= 0),
 	paid_for INT NOT NULL CHECK (paid_for >= 0),
-	data DATE NOT NULL
+	date DATE NOT NULL
 );
 
 CREATE TABLE position (

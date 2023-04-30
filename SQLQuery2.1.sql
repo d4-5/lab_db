@@ -12,7 +12,7 @@ WHERE MONTH(r.report_date) = MONTH(GETDATE()) AND p.manager = 'John Doe'
 GROUP BY p.name, p.start_date, p.planned_duration, p.manager;
 
 /* Клієнти і всі їхні не оплачені рахунки */
-SELECT c.name, c.balance, pa.amount_due, pa.paid_for, pa.data
+SELECT c.name, c.balance, pa.amount_due, pa.paid_for, pa.date
 FROM customer AS c LEFT OUTER JOIN project AS pr
 	ON c.id = pr.customer_id
 	LEFT OUTER JOIN payment AS pa
@@ -20,12 +20,12 @@ FROM customer AS c LEFT OUTER JOIN project AS pr
 		WHERE pa.amount_due != pa.paid_for
 
 /* Клієнти і всі їхні не оплачені рахунки давністю більше ніж 3 місяці */
-SELECT c.name, c.balance, pa.amount_due, pa.paid_for, pa.data
+SELECT c.name, c.balance, pa.amount_due, pa.paid_for, pa.date
 FROM customer AS c LEFT OUTER JOIN project AS pr
 	ON c.id = pr.customer_id
 	LEFT OUTER JOIN payment AS pa
 		ON pr.id = pa.project_id
-		WHERE pa.amount_due != pa.paid_for AND MONTH(pa.data) <= MONTH(GETDATE()) - 3
+		WHERE pa.amount_due != pa.paid_for AND MONTH(pa.date) <= MONTH(GETDATE()) - 3
 
 /* Всі клієнти які мають хоча б один проект */
 SELECT *
