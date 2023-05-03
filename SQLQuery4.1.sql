@@ -66,19 +66,53 @@ GO
 
 CREATE TRIGGER project_insert_t1
 ON project
-INSTEAD OF INSERT
+AFTER INSERT
 AS
 BEGIN
-	INSERT INTO project (UCR, DCR, ULC, DLC, difficulty_id, customer_id, name, manager, planned_duration, start_date)
-	SELECT SUSER_NAME(), GETDATE(), SUSER_NAME(), GETDATE(), difficulty_id, customer_id, name, manager, planned_duration, start_date
-	FROM inserted AS i
-	WHERE (
-		SELECT SUM(pa.amount_due - pa.paid_for) AS debt
+	DECLARE @difficulty_id INT
+	DECLARE @customer_id INT 
+	DECLARE @name VARCHAR
+	DECLARE @manager VARCHAR
+	DECLARE @planned_duration INT
+	DECLARE @start_date DATE
+    DECLARE @id INT
+	DECLARE @debt INT
+	DECLARE @error BIT
+	SET @error = 0
+ 	DECLARE inserted_cursor CURSOR FOR
+	SELECT id, difficulty_id, customer_id, name, manager, planned_duration, start_date
+	FROM inserted
+
+	OPEN inserted_cursor
+	FETCH NEXT FROM inserted_cursor INTO @id, @difficulty_id, @customer_id, @name, @manager, @planned_duration, @start_date
+
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+		SELECT @debt = SUM(pa.amount_due - pa.paid_for)
 		FROM payment AS pa 
 		INNER JOIN project AS pr ON pr.id = pa.project_id
 		INNER JOIN customer AS c ON c.id = pr.customer_id
-		WHERE pa.date <= DATEADD(mm, -3, GETDATE()) AND c.id = i.customer_id
-	) = 0;
+		WHERE pa.date <= DATEADD(mm, -3, GETDATE()) AND c.id = @customer_id
+		IF @debt = 0
+		BEGIN
+			UPDATE project
+			SET UCR = SUSER_NAME(), DCR = GETDATE(), ULC = SUSER_NAME(), DLC = GETDATE()
+			WHERE id = @id
+		END
+		ELSE
+		BEGIN
+			RAISERROR('Could not make a new project for customer that has a more than 3 month old debt. customer_id : %d , name : %s',17,1, @customer_id, @name)
+			SET @error = 1
+		END
+		
+		FETCH NEXT FROM inserted_cursor INTO @id, @difficulty_id, @customer_id, @name, @manager, @planned_duration, @start_date
+	END
+
+	CLOSE inserted_cursor
+	DEALLOCATE inserted_cursor
+
+	IF @error = 1
+		ROLLBACK TRANSACTION
 END;
 GO
 
@@ -274,7 +308,7 @@ GO
 
 CREATE TRIGGER report_insert_t1
 ON report
-INSTEAD OF INSERT
+AFTER INSERT
 AS
 BEGIN
 	DECLARE @hours_total INT
@@ -282,6 +316,8 @@ BEGIN
 	DECLARE @employee_id INT
 	DECLARE @hours_worked TINYINT
 	DECLARE @report_date DATE
+    DECLARE @error BIT
+    SET @error = 0
 	DECLARE inserted_cursor CURSOR FOR
     SELECT project_id, employee_id, hours_worked, report_date
     FROM inserted
@@ -295,17 +331,27 @@ BEGIN
 		FROM report AS r
 		WHERE r.employee_id = @employee_id AND r.report_date = @report_date
 		IF @hours_total + @hours_worked > 10
-			INSERT INTO report(project_id, employee_id, hours_worked, report_date, UCR, DCR, ULC, DLC)
-			VALUES(@project_id, @employee_id, 10 - @hours_total, @report_date, SUSER_NAME(), GETDATE(), SUSER_NAME(), GETDATE())
+		BEGIN
+            DECLARE @date_string VARCHAR(10)
+            SET @date_string = CAST(@report_date AS VARCHAR)
+            RAISERROR('Could not report more than 10 hours of work. employee_id: %d, report_date: %s',17,1, @employee_id, @date_string)
+            SET @error = 1
+        END
 		ELSE
-			INSERT INTO report(project_id, employee_id, hours_worked, report_date, UCR, DCR, ULC, DLC)
-			VALUES(@project_id, @employee_id, @hours_worked, @report_date, SUSER_NAME(), GETDATE(), SUSER_NAME(), GETDATE())
-			
+        BEGIN
+			UPDATE report
+			SET UCR = SUSER_NAME(), DCR = GETDATE(), ULC = SUSER_NAME(), DLC = GETDATE()
+			WHERE employee_id = @employee_id AND project_id = @project_id AND report_date = @report_date
+		END
+
         FETCH NEXT FROM inserted_cursor INTO @project_id, @employee_id, @hours_worked, @report_date
     END
 
     CLOSE inserted_cursor
     DEALLOCATE inserted_cursor
+
+    IF @error = 1
+        ROLLBACK TRANSACTION
 END;
 GO
 
