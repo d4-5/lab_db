@@ -304,6 +304,8 @@ ALTER TABLE report ADD UCR VARCHAR(255);
 ALTER TABLE report ADD DCR DATETIME;
 ALTER TABLE report ADD ULC VARCHAR(255);
 ALTER TABLE report ADD DLC DATETIME;
+CREATE UNIQUE INDEX idx_report_employee_project_date
+ON report (employee_id, project_id, report_date);
 GO
 
 CREATE TRIGGER report_insert_t1
